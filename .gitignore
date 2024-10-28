@@ -1,8 +1,8 @@
 # Created by https://www.toptal.com/developers/gitignore/api/goland,dotenv,redis
 # Edit at https://www.toptal.com/developers/gitignore?templates=goland,dotenv,redis
 
-./db-data/postgres/
-./db-data/redis/
+/db-data/postgres/
+/db-data/redis/
 
 ### dotenv ###
 .env
