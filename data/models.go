@@ -13,12 +13,12 @@ func New(dbPool *sql.DB) Models {
 	db = dbPool
 
 	return Models{
-		User: User{},
-		Plan: Plan{},
+		User: &User{},
+		Plan: &Plan{},
 	}
 }
 
 type Models struct {
-	User User
-	Plan Plan
+	User UserInterface
+	Plan PlanInterface
 }
