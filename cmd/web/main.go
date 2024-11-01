@@ -31,21 +31,36 @@ func main() {
 	wg := sync.WaitGroup{}
 
 	app := Config{
-		Session:  session,
-		DB:       db,
-		InfoLog:  log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime),
-		ErrorLog: log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile),
-		Wait:     &wg,
-		Models:   data.New(db),
+		Session:       session,
+		DB:            db,
+		InfoLog:       log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime),
+		ErrorLog:      log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile),
+		Wait:          &wg,
+		Models:        data.New(db),
+		ErrorChan:     make(chan error),
+		ErrorChanDone: make(chan bool),
 	}
 
 	app.Mailer = app.createMail()
 	go app.listenForMail()
-
 	go app.listenForShutdown()
+	go app.listenForErrors()
 
 	app.serve()
 
+}
+
+func (app *Config) listenForErrors() {
+	for {
+		select {
+		case err := <-app.ErrorChan:
+			if err != nil {
+				app.ErrorLog.Println(err)
+			}
+		case <-app.ErrorChanDone:
+			return
+		}
+	}
 }
 
 func (app *Config) serve() {
@@ -142,10 +157,13 @@ func (app *Config) shutdown() {
 
 	app.Wait.Wait()
 	app.Mailer.DoneChan <- true
+	app.ErrorChanDone <- true
 	app.InfoLog.Println("Closing channels and shutting dow application")
 	close(app.Mailer.MailerChan)
 	close(app.Mailer.ErrorChan)
 	close(app.Mailer.DoneChan)
+	close(app.ErrorChan)
+	close(app.ErrorChanDone)
 }
 
 func (app *Config) createMail() Mail {
