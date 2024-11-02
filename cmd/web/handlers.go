@@ -10,6 +10,9 @@ import (
 	"subscription-service/data"
 )
 
+var pathToManual = "./pdf/manual.pdf"
+var tmpPath = "./tmp"
+
 func (app *Config) HomePage(w http.ResponseWriter, r *http.Request) {
 	app.render(w, r, "home.page.gohtml", nil)
 }
@@ -36,7 +39,7 @@ func (app *Config) PostLoginPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	validPassword, err := user.PasswordMatches(password)
+	validPassword, err := app.Models.User.PasswordMatches(password)
 	if err != nil {
 		app.Session.Put(r.Context(), "error", "Inavlid login credentials")
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
@@ -92,7 +95,7 @@ func (app *Config) PostRegisterPage(w http.ResponseWriter, r *http.Request) {
 		IsAdmin:   0,
 	}
 
-	_, err = u.Insert(u)
+	_, err = app.Models.User.Insert(u)
 	if err != nil {
 		app.Session.Put(r.Context(), "error", "Failed to create user")
 		http.Redirect(w, r, "/register", http.StatusSeeOther)
@@ -134,7 +137,7 @@ func (app *Config) ActivateAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	u.Active = 1
-	err = u.Update()
+	err = app.Models.User.Update(*u)
 	if err != nil {
 		app.Session.Put(r.Context(), "error", "Failed to activate account")
 		http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -206,7 +209,7 @@ func (app *Config) SubscribeToPlan(w http.ResponseWriter, r *http.Request) {
 		defer app.Wait.Done()
 
 		pdf := app.generateManual(user, plan)
-		err := pdf.OutputFileAndClose(fmt.Sprintf("./tmp/%d_manual.pdf", user.ID))
+		err := pdf.OutputFileAndClose(fmt.Sprintf("%s/%d_manual.pdf", tmpPath, user.ID))
 		if err != nil {
 			app.ErrorChan <- err
 			return
@@ -217,7 +220,7 @@ func (app *Config) SubscribeToPlan(w http.ResponseWriter, r *http.Request) {
 			Subject: "User Manual",
 			Data:    "Please find the user manual attached",
 			AttachmentMap: map[string]string{
-				"manual.pdf": fmt.Sprintf("./tmp/%d_manual.pdf", user.ID),
+				"manual.pdf": fmt.Sprintf("%s/%d_manual.pdf", tmpPath, user.ID),
 			},
 		}
 
@@ -250,7 +253,7 @@ func (app *Config) generateManual(u data.User, plan *data.Plan) *gofpdf.Fpdf {
 
 	importer := gofpdi.NewImporter()
 
-	t := importer.ImportPage(pdf, "./pdf/manual.pdf", 1, "/MediaBox")
+	t := importer.ImportPage(pdf, fmt.Sprintf("%s/manual.pdf", pathToManual), 1, "/MediaBox")
 	pdf.AddPage()
 	importer.UseImportedTemplate(pdf, t, 0, 0, 215.9, 0)
 
